@@ -1,0 +1,8 @@
+Noto Sans CJK HK (Regular), converted to TrueType and subsetted for this app
+(Latin, CJK punctuation, kana, bopomofo, CJK Unified Ideographs including
+Extension A, and compatibility forms). Hong Kong glyph forms.
+
+Source: https://github.com/notofonts/noto-cjk
+Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'.
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+https://scripts.sil.org/OFL
