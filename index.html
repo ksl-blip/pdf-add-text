@@ -42,11 +42,12 @@
       background: var(--bg);
       overflow: hidden;
     }
-    button, input, select { font-family: inherit; }
+    button, input, select, textarea { font-family: inherit; }
+    body.interacting { user-select: none; }
 
     .app {
       display: grid;
-      grid-template-rows: var(--header-h) var(--bar-h) 1fr;
+      grid-template-rows: var(--header-h) auto 1fr;
       height: 100%;
     }
 
@@ -144,16 +145,23 @@
       font-size: 11px;
       opacity: 0.8;
     }
+    .btn-sm {
+      height: 28px;
+      padding: 0 10px;
+      font-size: 12px;
+      border-radius: 6px;
+    }
 
     .toolbar {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 0 16px;
+      flex-wrap: wrap;
+      gap: 8px 10px;
+      padding: 6px 16px;
+      min-height: var(--bar-h);
       background: #f7f9fc;
       border-bottom: 1px solid var(--line);
       overflow-x: auto;
-      white-space: nowrap;
     }
     .group {
       display: flex;
@@ -182,13 +190,17 @@
       color: var(--ink-soft);
     }
     .hint {
+      flex: 1 1 180px;
+      min-width: 140px;
       color: var(--muted);
       font-size: 12px;
       overflow: hidden;
       text-overflow: ellipsis;
+      white-space: nowrap;
     }
-    .props { display: none; align-items: center; gap: 8px; }
+    .props { display: none; align-items: center; gap: 8px; flex-shrink: 0; }
     .props.visible { display: flex; }
+    .props.hide-fill .fill-ctl { display: none; }
     .num, .hex {
       width: 58px;
       height: 28px;
@@ -211,12 +223,12 @@
     }
     input[type="color"]::-webkit-color-swatch-wrapper { padding: 3px; }
     input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
+    input[type="color"]:disabled { opacity: 0.35; cursor: not-allowed; }
     input[type="range"] {
       width: 80px;
       accent-color: var(--accent);
     }
-    .toggle {
-      width: 28px;
+    .toggle, .tool {
       height: 28px;
       border: 1px solid var(--line-strong);
       border-radius: 6px;
@@ -226,11 +238,16 @@
       cursor: pointer;
       color: var(--ink-soft);
     }
-    .toggle.on {
+    .toggle { width: 28px; }
+    .tool { padding: 0 8px; }
+    .toggle.on, .tool.on {
       background: var(--accent-soft);
       border-color: #b8c8ff;
       color: var(--accent);
     }
+    .tool:focus-visible, .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    #orig-toggle { width: auto; padding: 0 8px; font-weight: 650; }
+    #prop-cover, #image-lock, #shape-fill-on { width: auto; padding: 0 8px; font-weight: 650; }
 
     main.stage {
       position: relative;
@@ -259,6 +276,7 @@
       position: absolute;
       inset: 0;
       cursor: crosshair;
+      overflow: visible;
     }
 
     .dropzone {
@@ -296,42 +314,97 @@
       font-weight: 700;
     }
 
-    .textbox {
+    .pdf-text {
       position: absolute;
-      min-width: 16px;
-      min-height: 12px;
-      border: 1px dashed transparent;
-      pointer-events: auto;
-      cursor: default;
+      background: rgba(45, 91, 255, 0.12);
+      outline: 1px dashed rgba(45, 91, 255, 0.55);
+      border-radius: 2px;
+      cursor: pointer;
+      z-index: 1;
     }
-    .textbox:hover { border-color: rgba(45, 91, 255, 0.35); }
-    .textbox.selected {
-      border: 1.5px solid var(--accent);
+    .pdf-text:hover { background: rgba(45, 91, 255, 0.24); }
+
+    .ann {
+      position: absolute;
+      min-width: 8px;
+      min-height: 8px;
+      outline: 1px dashed transparent;
+      overflow: visible;
+      z-index: 2;
+    }
+    .ann:hover { outline-color: rgba(45, 91, 255, 0.35); }
+    .ann.selected {
+      outline: 1.5px solid var(--accent);
       box-shadow: 0 0 0 3px var(--accent-ring);
       z-index: 5;
     }
+    .ann.cover, .ann.cover.selected {
+      outline: none;
+      box-shadow: none;
+      z-index: 2;
+    }
+    .ann.cover.cover-live { outline: 1px dashed rgba(45, 91, 255, 0.45); }
+    .ann.line { outline: none; }
+    .ann.line:hover { outline: none; }
+    .ann.line.selected {
+      outline: 1px dashed rgba(45, 91, 255, 0.4);
+      box-shadow: none;
+    }
+    .ann.rect, .ann.ellipse, .ann.image { cursor: move; }
+    .ann.text.selected:not(.editing) { cursor: text; }
+    .ann.editing { z-index: 6; }
+    .ann.editing .tb-body { background: rgba(255, 255, 255, 0.86); border-radius: 2px; }
+
     .tb-move {
       display: none;
       position: absolute;
       left: -1px;
       right: -1px;
-      top: -15px;
-      height: 14px;
+      top: -16px;
+      height: 16px;
       background: var(--accent);
       border-radius: 3px 3px 0 0;
       cursor: grab;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      padding: 0 3px 0 5px;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 650;
+      line-height: 16px;
+      pointer-events: auto;
     }
-    .textbox.selected .tb-move { display: block; }
+    .ann.selected .tb-move { display: flex; }
     .tb-move:active { cursor: grabbing; }
-    .tb-body {
-      padding: 0;
-      outline: none;
+    .tb-move-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      opacity: 0.95;
     }
+    .tb-edit-btn {
+      flex-shrink: 0;
+      border: 0;
+      background: #fff;
+      color: var(--accent);
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 750;
+      height: 12px;
+      line-height: 12px;
+      padding: 0 4px;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+    .tb-body { padding: 0; outline: none; height: 100%; }
     .tb-line {
       white-space: pre;
       line-height: 1.3;
       font-family: NotoSansCJKhk, "Noto Sans CJK HK", "Noto Sans TC", "PingFang HK", sans-serif;
+      user-select: none;
     }
+    .tb-line.placeholder { opacity: 0.45; font-style: italic; }
     .tb-edit {
       display: block;
       width: 100%;
@@ -350,14 +423,11 @@
       overflow-wrap: anywhere;
       word-break: break-word;
     }
-    .tb-del, .tb-handle {
-      display: none;
-      position: absolute;
-    }
-    .textbox.selected .tb-del, .textbox.selected .tb-handle { display: block; }
+    .tb-del, .tb-handle { display: none; position: absolute; pointer-events: auto; }
+    .ann.selected .tb-del, .ann.selected .tb-handle { display: block; }
     .tb-del {
-      top: -15px;
-      right: -15px;
+      top: -17px;
+      right: -20px;
       width: 18px;
       height: 18px;
       border: 0;
@@ -378,8 +448,25 @@
       border-radius: 1px;
       z-index: 2;
     }
+    .tb-nw { left: -5px; top: -5px; cursor: nwse-resize; }
+    .tb-n { left: 50%; top: -5px; margin-left: -5px; cursor: ns-resize; }
+    .tb-ne { right: -5px; top: -5px; cursor: nesw-resize; }
     .tb-e { right: -5px; top: 50%; margin-top: -5px; cursor: ew-resize; }
     .tb-se { right: -5px; bottom: -5px; cursor: nwse-resize; }
+    .tb-s { left: 50%; bottom: -5px; margin-left: -5px; cursor: ns-resize; }
+    .tb-sw { left: -5px; bottom: -5px; cursor: nesw-resize; }
+    .tb-w { left: -5px; top: 50%; margin-top: -5px; cursor: ew-resize; }
+    .tb-handle.free { margin: 0; cursor: grab; }
+    .shape-svg { display: block; overflow: visible; pointer-events: none; }
+    .ann-img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: fill;
+      pointer-events: auto;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
 
     .toast-wrap {
       position: fixed;
@@ -440,7 +527,7 @@
     }
 
     body.dragging-file .stage { outline: 3px dashed var(--accent); outline-offset: -8px; }
-    #file-input { display: none; }
+    #file-input, #image-input { display: none; }
   </style>
 </head>
 <body>
@@ -450,13 +537,13 @@
         <div class="logo">Aa</div>
         <div class="titles">
           <h1>Add Text to PDF</h1>
-          <p>在 PDF 上加入文字</p>
+          <p>文字、圖片與圖形</p>
         </div>
       </div>
       <div class="status" id="status">Open a PDF to start · 開啟 PDF 以開始</div>
       <div class="actions">
         <button class="btn" id="btn-open" type="button" title="開啟 PDF">Open PDF</button>
-        <button class="btn btn-primary" id="btn-save" type="button" title="下載已加入文字的 PDF" disabled>Save PDF <span class="sub">下載</span></button>
+        <button class="btn btn-primary" id="btn-save" type="button" title="下載已加入文字、圖片與圖形的 PDF" disabled>Save PDF <span class="sub">下載</span></button>
       </div>
     </header>
 
@@ -476,8 +563,20 @@
         <button class="btn" id="zoom-fit" type="button" disabled>Fit</button>
       </div>
       <div class="sep"></div>
-      <div class="hint" id="hint">Click the page to add text · 點擊頁面以加入文字</div>
+      <div class="group" id="tools">
+        <span class="label">Add 加入</span>
+        <button class="tool on" type="button" data-tool="text" aria-pressed="true" title="Add text. Click the page, then type. 加入文字">Text</button>
+        <button class="tool" type="button" data-tool="image" aria-pressed="false" title="Insert a PNG, JPEG, SVG, WebP, or GIF diagram. 插入圖片">Image</button>
+        <button class="tool" type="button" data-tool="rect" aria-pressed="false" title="Drag to draw a rectangle. Shift makes a square. 矩形">▭</button>
+        <button class="tool" type="button" data-tool="ellipse" aria-pressed="false" title="Drag to draw an ellipse. Shift makes a circle. 橢圓">◯</button>
+        <button class="tool" type="button" data-tool="line" aria-pressed="false" title="Drag to draw a line. 直線">╱</button>
+        <button class="tool" type="button" data-tool="arrow" aria-pressed="false" title="Drag to draw an arrow. 箭頭">→</button>
+      </div>
+      <button class="toggle" id="orig-toggle" type="button" aria-pressed="false" title="Highlight text already in the PDF. Click it to cover and edit. 標示 PDF 原文，點擊後可覆蓋並修改">Original 原文</button>
+      <div class="sep"></div>
+      <div class="hint" id="hint">Click the page to add text. Double-click a box or press Edit to change it. 點擊加入文字，雙擊或按編輯以修改</div>
       <div class="props" id="props">
+        <button class="btn btn-primary btn-sm" id="prop-edit" type="button">Edit text 編輯</button>
         <span class="label">Size 大小</span>
         <input class="num" id="prop-size" type="number" min="8" max="96" step="1" value="18" />
         <span class="label">Color 顏色</span>
@@ -487,7 +586,27 @@
         <input id="prop-opacity" type="range" min="0.15" max="1" step="0.05" value="1" />
         <button class="toggle" id="prop-bold" type="button" title="Bold">B</button>
         <button class="toggle" id="prop-italic" type="button" title="Italic"><em>I</em></button>
-        <button class="btn btn-danger" id="prop-delete" type="button">Delete 刪除</button>
+        <button class="toggle" id="prop-cover" type="button" title="White rectangle behind this text. 白底遮住原文">Cover 白底</button>
+        <button class="btn btn-danger btn-sm" id="prop-delete" type="button">Delete 刪除</button>
+      </div>
+      <div class="props" id="shape-props">
+        <span class="label">Stroke 線</span>
+        <input id="shape-color" type="color" value="#1a1d23" />
+        <input class="hex" id="shape-hex" type="text" value="#1a1d23" maxlength="7" spellcheck="false" />
+        <span class="label">Width 粗幼</span>
+        <input class="num" id="shape-stroke" type="number" min="0" max="40" step="0.5" value="2" />
+        <span class="label fill-ctl">Fill 填色</span>
+        <button class="toggle fill-ctl" id="shape-fill-on" type="button" title="Fill the shape">Fill</button>
+        <input class="fill-ctl" id="shape-fill" type="color" value="#ffffff" disabled />
+        <span class="label">Opacity</span>
+        <input id="shape-opacity" type="range" min="0.15" max="1" step="0.05" value="1" />
+        <button class="btn btn-danger btn-sm" id="shape-delete" type="button">Delete 刪除</button>
+      </div>
+      <div class="props" id="image-props">
+        <span class="label">Opacity</span>
+        <input id="image-opacity" type="range" min="0.15" max="1" step="0.05" value="1" />
+        <button class="toggle on" id="image-lock" type="button" title="Keep proportions when resizing corners. 調整角落時維持比例" aria-pressed="true">Lock 比例</button>
+        <button class="btn btn-danger btn-sm" id="image-delete" type="button">Delete 刪除</button>
       </div>
     </div>
 
@@ -496,7 +615,7 @@
         <div class="dropzone" id="dropzone" role="button" tabindex="0">
           <div class="drop-icon">PDF</div>
           <h2>Drop a PDF here</h2>
-          <p>將 PDF 拖放到此處，或點擊選取檔案<br />File picker or drag-and-drop · everything stays in your browser</p>
+          <p>將 PDF 拖放到此處，或點擊選取檔案<br />Then add text, images, and shapes. Everything stays in your browser.</p>
         </div>
         <div id="page-wrap">
           <canvas id="pdf-canvas"></canvas>
@@ -512,12 +631,15 @@
   </div>
   <div class="toast-wrap" id="toasts"></div>
   <input id="file-input" type="file" accept="application/pdf,.pdf" />
+  <input id="image-input" type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif,image/bmp,.png,.jpg,.jpeg,.svg,.webp,.gif,.bmp" />
 
   <script>
   (() => {
     const LINE = 1.3;
     const DEFAULT_SIZE = 18;
     const DEFAULT_COLOR = "#1a1d23";
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const BOX_HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
     const FONT_URLS = [
       "fonts/NotoSansCJKhk-Regular.ttf",
       "https://cdn.jsdelivr.net/gh/notofonts/noto-cjk@Sans2.004/Sans/SubsetOTF/HK/NotoSansHK-Regular.otf",
@@ -543,15 +665,31 @@
       zoomIn: $("zoom-in"),
       zoomLabel: $("zoom-label"),
       zoomFit: $("zoom-fit"),
+      tools: $("tools"),
+      origToggle: $("orig-toggle"),
       hint: $("hint"),
       props: $("props"),
+      editBtn: $("prop-edit"),
       size: $("prop-size"),
       color: $("prop-color"),
       hex: $("prop-hex"),
       opacity: $("prop-opacity"),
       bold: $("prop-bold"),
       italic: $("prop-italic"),
+      coverBtn: $("prop-cover"),
       del: $("prop-delete"),
+      shapeProps: $("shape-props"),
+      shapeColor: $("shape-color"),
+      shapeHex: $("shape-hex"),
+      shapeStroke: $("shape-stroke"),
+      shapeFillOn: $("shape-fill-on"),
+      shapeFill: $("shape-fill"),
+      shapeOpacity: $("shape-opacity"),
+      shapeDelete: $("shape-delete"),
+      imageProps: $("image-props"),
+      imageOpacity: $("image-opacity"),
+      imageLock: $("image-lock"),
+      imageDelete: $("image-delete"),
       stage: $("stage"),
       board: $("board"),
       dropzone: $("dropzone"),
@@ -559,6 +697,7 @@
       canvas: $("pdf-canvas"),
       overlay: $("overlay"),
       fileInput: $("file-input"),
+      imageInput: $("image-input"),
       fontBanner: $("font-banner"),
       fontBannerText: $("font-banner-text"),
       fontBar: $("font-bar"),
@@ -569,6 +708,7 @@
       pdfBytes: null,
       filename: "document.pdf",
       pdfjsDoc: null,
+      docGen: 0,
       pageCount: 0,
       page: 1,
       zoom: 1,
@@ -577,6 +717,19 @@
       boxes: [],
       selectedId: null,
       editingId: null,
+      focusEdit: false,
+      pendingCaret: null,
+      tool: "text",
+      showOriginal: false,
+      pageText: [],
+      textCacheKey: "",
+      shapeStyle: {
+        color: DEFAULT_COLOR,
+        strokeWidth: 2,
+        fill: "#ffffff",
+        fillEnabled: false,
+        opacity: 1,
+      },
       fontBytes: null,
       fontReady: false,
       fontError: false,
@@ -588,10 +741,23 @@
       renderTask: null,
       interacting: false,
       suppressClick: false,
+      gesture: null,
     };
 
     function uid() {
       return "t" + Math.random().toString(36).slice(2, 10);
+    }
+
+    function isText(ann) {
+      return !!ann && (ann.type === "text" || !ann.type);
+    }
+
+    function isLineLike(ann) {
+      return !!ann && (ann.type === "line" || ann.type === "arrow");
+    }
+
+    function isShape(ann) {
+      return !!ann && !ann.linkedTextId && (ann.type === "rect" || ann.type === "ellipse" || ann.type === "line" || ann.type === "arrow");
     }
 
     function isLatinChar(ch) {
@@ -656,9 +822,16 @@
       els.status.textContent = text;
     }
 
+    function clamp(n, min, max, fallback) {
+      const v = Number(n);
+      if (!Number.isFinite(v)) return fallback;
+      return Math.min(max, Math.max(min, v));
+    }
+
     function hexToRgb(hex) {
-      const h = hex.replace("#", "");
+      const h = String(hex || "").replace("#", "");
       const n = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+      if (!Number.isFinite(n)) return { r: 0, g: 0, b: 0 };
       return { r: ((n >> 16) & 255) / 255, g: ((n >> 8) & 255) / 255, b: (n & 255) / 255 };
     }
 
@@ -795,6 +968,39 @@
       return { x: x * (vp.width / r.width), y: y * (vp.height / r.height) };
     }
 
+    function viewportEventToPage(p) {
+      const s = (state.viewport && state.viewport.scale) || 1;
+      return { x: p.x / s, y: p.y / s };
+    }
+
+    function displayRatio(vp) {
+      const w = parseFloat(els.overlay.style.width) || vp.width;
+      const h = parseFloat(els.overlay.style.height) || vp.height;
+      return { sx: w / vp.width, sy: h / vp.height };
+    }
+
+    function pageToCss(px, py) {
+      const vp = state.viewport;
+      const { sx, sy } = displayRatio(vp);
+      return { left: px * vp.scale * sx, top: py * vp.scale * sy };
+    }
+
+    function pageRectCss(x, y, w, h) {
+      const a = pageToCss(x, y);
+      const b = pageToCss(x + w, y + h);
+      return {
+        left: a.left,
+        top: a.top,
+        width: Math.max(0, b.left - a.left),
+        height: Math.max(0, b.top - a.top),
+      };
+    }
+
+    function pageCenter() {
+      const vp = state.viewport;
+      return { x: vp.width / vp.scale / 2, y: vp.height / vp.scale / 2 };
+    }
+
     function selected() {
       return state.boxes.find((b) => b.id === state.selectedId) || null;
     }
@@ -803,25 +1009,124 @@
       return state.boxes.filter((b) => b.page === state.page);
     }
 
+    function bringToFront(id) {
+      const ann = state.boxes.find((b) => b.id === id);
+      if (!ann) return;
+      const moving = new Set([id]);
+      if (isText(ann) && ann.coverId) moving.add(ann.coverId);
+      const cover = ann.coverId ? state.boxes.find((b) => b.id === ann.coverId) : null;
+      const keep = state.boxes.filter((b) => !moving.has(b.id));
+      state.boxes = keep;
+      if (cover) state.boxes.push(cover);
+      state.boxes.push(ann);
+    }
+
+    function updateHint() {
+      if (!state.pdfjsDoc) {
+        els.hint.textContent = "Open a PDF to start · 開啟 PDF 以開始";
+        return;
+      }
+      if (state.editingId) {
+        els.hint.textContent = "Editing text · Esc to finish · 編輯中，按 Esc 完成";
+        return;
+      }
+      if (state.showOriginal && state.tool === "text") {
+        els.hint.textContent = "Click highlighted PDF text to cover and edit it, or click empty space to add text · 點選標示的原文以修改，或點空白處加入文字";
+        return;
+      }
+      const hints = {
+        text: "Click to add text. Select a box, then click Edit or double-click. 點擊加入文字；選取後按編輯或雙擊",
+        rect: "Drag to draw a rectangle. Hold Shift for a square. 拖曳畫矩形，按住 Shift 畫正方形",
+        ellipse: "Drag to draw an ellipse. Hold Shift for a circle. 拖曳畫橢圓，按住 Shift 畫圓",
+        line: "Drag to draw a line. Hold Shift for 45°. 拖曳畫直線，按住 Shift 為 45 度",
+        arrow: "Drag to draw an arrow. Hold Shift for 45°. 拖曳畫箭頭，按住 Shift 為 45 度",
+      };
+      els.hint.textContent = hints[state.tool] || hints.text;
+    }
+
+    function setTool(tool) {
+      state.tool = tool;
+      els.tools.querySelectorAll("[data-tool]").forEach((btn) => {
+        const on = btn.dataset.tool === tool;
+        btn.classList.toggle("on", on);
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      updateHint();
+    }
+
     function setSelected(id, edit) {
-      state.selectedId = id;
-      if (edit && id) state.editingId = id;
-      else if (id !== state.editingId) state.editingId = null;
+      if (id) bringToFront(id);
+      state.selectedId = id || null;
+      if (edit && id) {
+        state.editingId = id;
+        state.focusEdit = true;
+      } else if (id !== state.editingId) {
+        state.editingId = null;
+      }
       syncProps();
       drawOverlays();
     }
 
+    function beginEdit(id) {
+      const ann = state.boxes.find((b) => b.id === id);
+      if (!ann || !isText(ann)) return;
+      if (state.editingId === id && state.selectedId === id) {
+        const ta = els.overlay.querySelector("textarea.tb-edit");
+        if (ta) ta.focus();
+        return;
+      }
+      setSelected(id, true);
+    }
+
     function syncProps() {
-      const box = selected();
-      els.props.classList.toggle("visible", !!box);
-      els.hint.style.display = box ? "none" : "";
-      if (!box) return;
-      els.size.value = String(Math.round(box.fontSize * 10) / 10);
-      els.color.value = box.color;
-      els.hex.value = box.color;
-      els.opacity.value = String(box.opacity);
-      els.bold.classList.toggle("on", !!box.bold);
-      els.italic.classList.toggle("on", !!box.italic);
+      const ann = selected();
+      const text = ann && isText(ann);
+      const shape = ann && isShape(ann);
+      const image = ann && ann.type === "image";
+      els.props.classList.toggle("visible", !!text);
+      els.shapeProps.classList.toggle("visible", !!shape);
+      els.imageProps.classList.toggle("visible", !!image);
+      els.hint.style.display = ann ? "none" : "";
+      updateHint();
+      if (text) fillTextProps(ann);
+      if (shape) fillShapeProps(ann);
+      if (image) fillImageProps(ann);
+    }
+
+    function fillTextProps(ann) {
+      const editing = state.editingId === ann.id;
+      els.editBtn.textContent = editing ? "Done 完成" : "Edit text 編輯";
+      els.editBtn.classList.toggle("btn-primary", !editing);
+      els.size.value = String(Math.round(ann.fontSize * 10) / 10);
+      els.color.value = ann.color;
+      els.hex.value = ann.color;
+      els.opacity.value = String(ann.opacity);
+      els.bold.classList.toggle("on", !!ann.bold);
+      els.italic.classList.toggle("on", !!ann.italic);
+      els.coverBtn.classList.toggle("on", !!ann.coverId);
+      els.coverBtn.setAttribute("aria-pressed", ann.coverId ? "true" : "false");
+    }
+
+    function fillShapeProps(ann) {
+      const lineLike = isLineLike(ann);
+      els.shapeProps.classList.toggle("hide-fill", lineLike);
+      const color = normalizeHex(ann.color) || DEFAULT_COLOR;
+      els.shapeColor.value = color;
+      els.shapeHex.value = color;
+      els.shapeStroke.value = String(ann.strokeWidth);
+      const fillOn = !!ann.fill && !lineLike;
+      els.shapeFillOn.classList.toggle("on", fillOn);
+      els.shapeFillOn.setAttribute("aria-pressed", fillOn ? "true" : "false");
+      if (ann.fill) els.shapeFill.value = normalizeHex(ann.fill) || "#ffffff";
+      els.shapeFill.disabled = !fillOn;
+      els.shapeOpacity.value = String(ann.opacity == null ? 1 : ann.opacity);
+    }
+
+    function fillImageProps(ann) {
+      els.imageOpacity.value = String(ann.opacity == null ? 1 : ann.opacity);
+      const locked = ann.lockAspect !== false;
+      els.imageLock.classList.toggle("on", locked);
+      els.imageLock.setAttribute("aria-pressed", locked ? "true" : "false");
     }
 
     function updateChrome() {
@@ -837,9 +1142,12 @@
       els.zoomLabel.textContent = scalePct + "%";
     }
 
-    function computeFitScale() {
-      if (!state.pdfjsDoc) return 1;
-      return state._fitBase || 1;
+    function revokeBoxUrls(list) {
+      for (const b of list) {
+        if (b.previewUrl) {
+          try { URL.revokeObjectURL(b.previewUrl); } catch (e) { /* ignore */ }
+        }
+      }
     }
 
     async function openPdfFile(file) {
@@ -892,18 +1200,23 @@
         toast("This PDF has no pages. 此 PDF 沒有頁面。", "error");
         return;
       }
+      revokeBoxUrls(state.boxes);
       state.pdfBytes = bytes;
       state.filename = name;
+      state.docGen += 1;
       state.pageCount = state.pdfjsDoc.numPages;
       state.page = 1;
       state.zoom = 1;
       state.boxes = [];
       state.selectedId = null;
       state.editingId = null;
+      state.pageText = [];
+      state.textCacheKey = "";
       els.dropzone.style.display = "none";
       els.pageWrap.classList.add("open");
       setStatus(name + "  ·  " + state.pageCount + " page" + (state.pageCount > 1 ? "s" : ""));
       updateChrome();
+      syncProps();
       await renderPage();
     }
 
@@ -954,13 +1267,103 @@
         state.renderTask = null;
       }
       updateChrome();
+      if (state.showOriginal) {
+        try { await ensurePageText(); }
+        catch (err) { console.warn(err); }
+      }
       drawOverlays();
     }
 
-    function displayRatio(vp) {
-      const w = parseFloat(els.overlay.style.width) || vp.width;
-      const h = parseFloat(els.overlay.style.height) || vp.height;
-      return { sx: w / vp.width, sy: h / vp.height };
+    function ascentOf(style) {
+      const a = style && typeof style.ascent === "number" ? style.ascent : 0.8;
+      return a > 0.4 && a < 1.3 ? a : 0.8;
+    }
+
+    function descentOf(style) {
+      const d = style && typeof style.descent === "number" ? style.descent : -0.2;
+      return d < 0 && d > -0.8 ? d : -0.2;
+    }
+
+    function isCjkChar(ch) {
+      if (!ch) return false;
+      const c = ch.codePointAt(0);
+      return (c >= 0x3400 && c <= 0x9FFF) || (c >= 0xF900 && c <= 0xFAFF) || (c >= 0x3040 && c <= 0x30FF);
+    }
+
+    function extractLines(textContent, vp) {
+      const Util = pdfjsLib.Util;
+      if (!Util || !textContent) return [];
+      const styles = textContent.styles || {};
+      const raw = [];
+      for (const item of textContent.items || []) {
+        if (!item || !item.str || !item.transform || !String(item.str).trim()) continue;
+        const style = styles[item.fontName] || {};
+        if (style.vertical) continue;
+        const tx = Util.transform(vp.transform, item.transform);
+        const angle = Math.atan2(tx[1], tx[0]);
+        if (Math.abs(angle) > 0.35) continue;
+        const fontSize = Math.hypot(tx[2], tx[3]) || Math.hypot(tx[0], tx[1]) || item.height || 12;
+        if (!(fontSize > 0)) continue;
+        const origin = vp.convertToViewportPoint(item.transform[4], item.transform[5]);
+        let width = Math.abs(item.width || 0);
+        if (width < 0.4) width = Math.max(fontSize * 0.45, fontSize * Array.from(item.str).length * 0.5);
+        raw.push({
+          str: item.str,
+          x: origin[0],
+          baseline: origin[1],
+          fontSize,
+          width,
+          ascent: ascentOf(style),
+          descent: descentOf(style),
+          hasEOL: !!item.hasEOL,
+        });
+      }
+      raw.sort((a, b) => (a.baseline - b.baseline) || (a.x - b.x));
+      const lines = [];
+      let cur = null;
+      const flush = () => {
+        if (!cur) return;
+        cur.str = String(cur.str).replace(/[ \t]+$/g, "").replace(/^[ \t]+/g, "");
+        if (cur.str) lines.push(cur);
+        cur = null;
+      };
+      for (const it of raw) {
+        const size = Math.max(cur ? cur.fontSize : 0, it.fontSize);
+        const gapLimit = size * 0.9;
+        if (
+          cur &&
+          Math.abs(it.baseline - cur.baseline) <= size * 0.35 &&
+          Math.abs(it.fontSize - cur.fontSize) < Math.max(1.6, size * 0.25) &&
+          it.x >= cur.x - 2 &&
+          it.x <= cur.x + cur.width + gapLimit
+        ) {
+          const gap = it.x - (cur.x + cur.width);
+          const cjk = isCjkChar(cur.str.slice(-1)) || isCjkChar(it.str[0]);
+          if ((cjk && gap > size * 0.4) || (!cjk && gap > size * 0.15)) cur.str += " ";
+          cur.str += it.str;
+          cur.width = Math.max(cur.width, it.x + it.width - cur.x);
+          cur.fontSize = Math.max(cur.fontSize, it.fontSize);
+          cur.ascent = Math.max(cur.ascent, it.ascent);
+          cur.descent = Math.min(cur.descent, it.descent);
+          if (it.hasEOL) flush();
+        } else {
+          flush();
+          cur = Object.assign({}, it);
+          if (it.hasEOL) flush();
+        }
+      }
+      flush();
+      return lines;
+    }
+
+    async function ensurePageText() {
+      const key = state.docGen + ":" + state.page;
+      if (state.textCacheKey === key) return;
+      const page = await state.pdfjsDoc.getPage(state.page);
+      const textContent = await page.getTextContent();
+      const vp = page.getViewport({ scale: 1 });
+      state.pageText = extractLines(textContent, vp);
+      state.textCacheKey = key;
     }
 
     function boxCssRect(box, vp) {
@@ -970,119 +1373,473 @@
       const width = box.width * vp.scale * sx;
       const lines = wrapText(box.text, box.fontSize, box.width, box.bold, box.italic);
       const height = Math.max(1, lines.length) * box.fontSize * LINE * vp.scale * sy;
-      return { left: vx * sx, top: vy * sy - ascentCss, width, height, lines, vx: vx * sx, vy: vy * sy, ascentCss };
+      return { left: vx * sx, top: vy * sy - ascentCss, width, height, lines, ascentCss };
+    }
+
+    function syncCover(textBox) {
+      const cover = state.boxes.find((b) => b.id === textBox.coverId);
+      if (!cover || !state.viewport) return;
+      const vp = state.viewport;
+      const [vx, vy] = vp.convertToViewportPoint(textBox.x, textBox.y);
+      const pageX = vx / vp.scale;
+      const baseY = vy / vp.scale;
+      const lines = wrapText(textBox.text, textBox.fontSize, textBox.width, textBox.bold, textBox.italic);
+      const ascent = textBox.fontSize * state.metrics.ascentRatio;
+      const height = Math.max(1, lines.length) * textBox.fontSize * LINE;
+      const pad = 1.5;
+      let x1 = pageX - pad;
+      let y1 = baseY - ascent - pad;
+      let x2 = pageX + Math.max(8, textBox.width) + pad;
+      let y2 = baseY - ascent + height + pad;
+      const rel = textBox.originRel;
+      if (rel) {
+        x1 = Math.min(x1, pageX + rel.dx - pad);
+        y1 = Math.min(y1, baseY + rel.dy - pad);
+        x2 = Math.max(x2, pageX + rel.dx + rel.w + pad);
+        y2 = Math.max(y2, baseY + rel.dy + rel.h + pad);
+      }
+      cover.x = x1;
+      cover.y = y1;
+      cover.w = Math.max(1, x2 - x1);
+      cover.h = Math.max(1, y2 - y1);
+      cover.page = textBox.page;
+    }
+
+    function paintCoverElement(coverId) {
+      if (!coverId) return;
+      const cover = state.boxes.find((b) => b.id === coverId);
+      const el = cover ? els.overlay.querySelector('.ann.cover[data-id="' + cover.id + '"]') : null;
+      if (!cover || !el) return;
+      const css = pageRectCss(cover.x, cover.y, cover.w, cover.h);
+      el.style.left = css.left + "px";
+      el.style.top = css.top + "px";
+      el.style.width = Math.max(1, css.width) + "px";
+      el.style.height = Math.max(1, css.height) + "px";
+    }
+
+    function makeCover(text) {
+      const cover = {
+        id: uid(),
+        type: "rect",
+        page: text.page,
+        x: 0, y: 0, w: 4, h: 4,
+        color: "#ffffff",
+        fill: "#ffffff",
+        strokeWidth: 0,
+        opacity: 1,
+        linkedTextId: text.id,
+      };
+      text.coverId = cover.id;
+      return cover;
+    }
+
+    function svgEl(name, attrs) {
+      const el = document.createElementNS(SVG_NS, name);
+      for (const key of Object.keys(attrs || {})) {
+        if (attrs[key] != null) el.setAttribute(key, String(attrs[key]));
+      }
+      return el;
+    }
+
+    function strokeCss(ann) {
+      const vp = state.viewport;
+      const { sx } = displayRatio(vp);
+      return Math.max(ann.strokeWidth > 0 ? 0.75 : 0, (ann.strokeWidth || 0) * vp.scale * sx);
+    }
+
+    function arrowGeometry(x1, y1, x2, y2, head) {
+      const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+      const ang = Math.atan2(y2 - y1, x2 - x1);
+      const d = Math.min(head * 0.72, len * 0.45);
+      const a = 0.42;
+      return {
+        bx: x2 - Math.cos(ang) * d,
+        by: y2 - Math.sin(ang) * d,
+        x2, y2,
+        p1x: x2 - head * Math.cos(ang - a),
+        p1y: y2 - head * Math.sin(ang - a),
+        p2x: x2 - head * Math.cos(ang + a),
+        p2y: y2 - head * Math.sin(ang + a),
+      };
+    }
+
+    function addDelete(el, ann) {
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "tb-del";
+      del.title = "Delete 刪除";
+      del.textContent = "×";
+      del.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); });
+      del.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        deleteBox(ann.id);
+      });
+      el.appendChild(del);
+    }
+
+    function addMoveBar(el, ann) {
+      const move = document.createElement("div");
+      move.className = "tb-move";
+      move.title = "Drag to move 拖曳移動";
+      const label = document.createElement("span");
+      label.className = "tb-move-label";
+      if (isText(ann) && state.editingId === ann.id) label.textContent = "Editing 編輯中";
+      else label.textContent = "Drag 拖曳";
+      move.appendChild(label);
+      if (isText(ann)) {
+        const edit = document.createElement("button");
+        edit.type = "button";
+        edit.className = "tb-edit-btn";
+        edit.textContent = state.editingId === ann.id ? "Done" : "Edit";
+        edit.title = state.editingId === ann.id ? "Finish editing 完成編輯" : "Edit text 編輯文字";
+        edit.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); });
+        edit.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (state.editingId === ann.id) {
+            state.editingId = null;
+            syncProps();
+            drawOverlays();
+          } else {
+            beginEdit(ann.id);
+          }
+        });
+        move.appendChild(edit);
+      }
+      el.appendChild(move);
+    }
+
+    function addHandles(el, kinds) {
+      for (const name of kinds) {
+        const h = document.createElement("div");
+        h.className = "tb-handle tb-" + name;
+        h.dataset.handle = name;
+        el.appendChild(h);
+      }
+    }
+
+    function bindAnnPointer(el, ann) {
+      el.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        const handle = e.target.closest && e.target.closest("[data-handle]");
+        if (handle && el.contains(handle)) {
+          e.preventDefault();
+          e.stopPropagation();
+          startResize(ann, handle.dataset.handle, e);
+          return;
+        }
+        if (e.target.closest && e.target.closest(".tb-del, .tb-edit-btn, textarea")) return;
+        if (isText(ann) && state.editingId === ann.id && !(e.target.closest && e.target.closest(".tb-move"))) return;
+        armDrag(ann, e);
+      });
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (state.suppressClick) return;
+        if (e.target.closest && e.target.closest(".tb-del, .tb-edit-btn, .tb-handle")) return;
+        if (isText(ann) && state.editingId === ann.id) return;
+        const onMove = e.target.closest && e.target.closest(".tb-move");
+        if (state.selectedId !== ann.id) {
+          setSelected(ann.id, false);
+          return;
+        }
+        if (isText(ann) && !onMove) beginEdit(ann.id);
+      });
+      el.addEventListener("dblclick", (e) => {
+        if (!isText(ann)) return;
+        e.stopPropagation();
+        if (state.editingId === ann.id) return;
+        beginEdit(ann.id);
+      });
+    }
+
+    function drawOriginalText() {
+      if (!state.showOriginal || !state.pageText) return;
+      for (const line of state.pageText) {
+        const top = line.baseline - line.fontSize * line.ascent;
+        const height = Math.max(4, line.fontSize * (line.ascent - line.descent));
+        const css = pageRectCss(line.x, top, Math.max(line.width, 4), height);
+        const el = document.createElement("div");
+        el.className = "pdf-text";
+        el.style.left = css.left + "px";
+        el.style.top = css.top + "px";
+        el.style.width = Math.max(4, css.width) + "px";
+        el.style.height = Math.max(4, css.height) + "px";
+        el.dataset.pdfText = line.str;
+        el.title = "Edit: " + line.str.slice(0, 80);
+        el.addEventListener("mousedown", (e) => e.stopPropagation());
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (state.suppressClick) return;
+          editOriginalLine(line);
+        });
+        els.overlay.appendChild(el);
+      }
+    }
+
+    function drawTextAnn(box, vp) {
+      const rect = boxCssRect(box, vp);
+      const el = document.createElement("div");
+      const selectedOn = box.id === state.selectedId;
+      const editing = state.editingId === box.id;
+      el.className = "ann text" + (selectedOn ? " selected" : "") + (editing ? " editing" : "");
+      el.dataset.id = box.id;
+      el.dataset.type = "text";
+      el.style.left = rect.left + "px";
+      el.style.top = rect.top + "px";
+      el.style.width = Math.max(8, rect.width) + "px";
+      el.style.height = Math.max(8, rect.height) + "px";
+      el.style.color = box.color;
+      el.style.opacity = String(box.opacity);
+      el.style.fontSize = (box.fontSize * vp.scale) + "px";
+      el.style.fontWeight = box.bold ? "700" : "400";
+      el.style.fontStyle = box.italic ? "italic" : "normal";
+      el.style.fontFamily = FONT_FAMILY + ", sans-serif";
+      el.style.pointerEvents = "auto";
+      el.title = editing ? "Editing · Esc to finish · 編輯中，按 Esc 完成" : "Click again or double-click to edit · 再點或雙擊以編輯";
+      addMoveBar(el, box);
+
+      const body = document.createElement("div");
+      body.className = "tb-body";
+      if (editing) {
+        const prev = document.activeElement;
+        let restore = null;
+        if (prev && prev.classList && prev.classList.contains("tb-edit")) {
+          const host = prev.closest("[data-id]");
+          if (host && host.dataset.id === box.id) {
+            restore = { start: prev.selectionStart, end: prev.selectionEnd };
+          }
+        }
+        const wantFocus = state.focusEdit;
+        state.focusEdit = false;
+        const ta = document.createElement("textarea");
+        ta.className = "tb-edit";
+        ta.value = box.text || "";
+        ta.placeholder = "Type here… 在此輸入";
+        ta.spellcheck = false;
+        ta.addEventListener("input", () => {
+          box.text = ta.value;
+          const next = boxCssRect(box, state.viewport);
+          el.style.height = Math.max(8, next.height) + "px";
+          syncCover(box);
+          paintCoverElement(box.coverId);
+          maybeWarnGlyphs(box.text);
+        });
+        ta.addEventListener("mousedown", (e) => e.stopPropagation());
+        ta.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" || ((e.metaKey || e.ctrlKey) && e.key === "Enter")) {
+            e.preventDefault();
+            state.editingId = null;
+            syncProps();
+            drawOverlays();
+          }
+          e.stopPropagation();
+        });
+        body.appendChild(ta);
+        const caret = state.pendingCaret;
+        state.pendingCaret = null;
+        if (restore || wantFocus) {
+          requestAnimationFrame(() => {
+            ta.focus();
+            if (restore) {
+              const a = Math.min(restore.start, ta.value.length);
+              const b = Math.min(restore.end, ta.value.length);
+              ta.setSelectionRange(a, b);
+            } else {
+              const pos = caret == null ? ta.value.length : Math.min(caret, ta.value.length);
+              ta.setSelectionRange(pos, pos);
+            }
+          });
+        }
+      } else {
+        const { sy } = displayRatio(vp);
+        const empty = !String(box.text || "").length;
+        const lines = empty ? [selectedOn ? "Empty · click Edit" : " "] : rect.lines;
+        for (const line of lines) {
+          const ln = document.createElement("div");
+          ln.className = "tb-line" + (empty && selectedOn ? " placeholder" : "");
+          ln.textContent = line || " ";
+          ln.style.height = (box.fontSize * LINE * vp.scale * sy) + "px";
+          body.appendChild(ln);
+        }
+      }
+      el.appendChild(body);
+      addDelete(el, box);
+      addHandles(el, ["e", "se"]);
+      bindAnnPointer(el, box);
+      return el;
+    }
+
+    function drawBoxAnn(ann) {
+      const css = pageRectCss(ann.x, ann.y, Math.max(ann.w, 0.5), Math.max(ann.h, 0.5));
+      const el = document.createElement("div");
+      const live = ann.linkedTextId && ann.linkedTextId === state.selectedId;
+      el.className = "ann " + ann.type + (ann.linkedTextId ? " cover" : "") + (live ? " cover-live" : "") + (!ann.linkedTextId && ann.id === state.selectedId ? " selected" : "");
+      el.dataset.id = ann.id;
+      el.dataset.type = ann.type;
+      el.style.left = css.left + "px";
+      el.style.top = css.top + "px";
+      el.style.width = Math.max(1, css.width) + "px";
+      el.style.height = Math.max(1, css.height) + "px";
+      el.style.opacity = String(ann.opacity == null ? 1 : ann.opacity);
+      const sw = strokeCss(ann);
+      const svg = svgEl("svg", { class: "shape-svg", width: "100%", height: "100%" });
+      const fill = ann.fill || "transparent";
+      const stroke = sw > 0 ? (ann.color || DEFAULT_COLOR) : "none";
+      let shape;
+      if (ann.type === "ellipse") {
+        shape = svgEl("ellipse", {
+          cx: "50%", cy: "50%", rx: "50%", ry: "50%",
+          fill, stroke, "stroke-width": sw, "vector-effect": "non-scaling-stroke",
+        });
+      } else {
+        shape = svgEl("rect", {
+          x: "0", y: "0", width: "100%", height: "100%",
+          fill, stroke, "stroke-width": sw, "vector-effect": "non-scaling-stroke",
+        });
+      }
+      shape.style.pointerEvents = ann.linkedTextId ? "none" : "auto";
+      svg.appendChild(shape);
+      el.appendChild(svg);
+      if (ann.linkedTextId) {
+        el.style.pointerEvents = "none";
+        return el;
+      }
+      el.style.pointerEvents = "auto";
+      addMoveBar(el, ann);
+      addDelete(el, ann);
+      addHandles(el, BOX_HANDLES);
+      bindAnnPointer(el, ann);
+      return el;
+    }
+
+    function drawImageAnn(ann) {
+      const css = pageRectCss(ann.x, ann.y, Math.max(ann.w, 1), Math.max(ann.h, 1));
+      const el = document.createElement("div");
+      el.className = "ann image" + (ann.id === state.selectedId ? " selected" : "");
+      el.dataset.id = ann.id;
+      el.dataset.type = "image";
+      el.style.left = css.left + "px";
+      el.style.top = css.top + "px";
+      el.style.width = Math.max(1, css.width) + "px";
+      el.style.height = Math.max(1, css.height) + "px";
+      el.style.opacity = String(ann.opacity == null ? 1 : ann.opacity);
+      el.style.pointerEvents = "auto";
+      const img = document.createElement("img");
+      img.className = "ann-img";
+      img.alt = ann.name || "Diagram";
+      img.draggable = false;
+      img.src = ann.previewUrl;
+      el.appendChild(img);
+      addMoveBar(el, ann);
+      addDelete(el, ann);
+      addHandles(el, BOX_HANDLES);
+      bindAnnPointer(el, ann);
+      return el;
+    }
+
+    function drawLineAnn(ann) {
+      const headPt = ann.type === "arrow" ? Math.max(8, (ann.strokeWidth || 2) * 4.2) : 0;
+      const pad = Math.max(10, (ann.strokeWidth || 2) + 8, headPt);
+      const minX = Math.min(ann.x, ann.x2) - pad;
+      const minY = Math.min(ann.y, ann.y2) - pad;
+      const maxX = Math.max(ann.x, ann.x2) + pad;
+      const maxY = Math.max(ann.y, ann.y2) + pad;
+      const css = pageRectCss(minX, minY, Math.max(4, maxX - minX), Math.max(4, maxY - minY));
+      const el = document.createElement("div");
+      el.className = "ann line" + (ann.id === state.selectedId ? " selected" : "");
+      el.dataset.id = ann.id;
+      el.dataset.type = ann.type;
+      el.style.left = css.left + "px";
+      el.style.top = css.top + "px";
+      el.style.width = Math.max(1, css.width) + "px";
+      el.style.height = Math.max(1, css.height) + "px";
+      el.style.opacity = String(ann.opacity == null ? 1 : ann.opacity);
+      el.style.pointerEvents = "none";
+      const local = (px, py) => {
+        const c = pageToCss(px, py);
+        return { x: c.left - css.left, y: c.top - css.top };
+      };
+      const a = local(ann.x, ann.y);
+      const b = local(ann.x2, ann.y2);
+      const sw = Math.max(0.75, strokeCss(ann));
+      const svg = svgEl("svg", {
+        class: "shape-svg",
+        width: css.width,
+        height: css.height,
+        viewBox: "0 0 " + css.width + " " + css.height,
+      });
+      const color = ann.color || DEFAULT_COLOR;
+      let x1 = a.x, y1 = a.y, x2 = b.x, y2 = b.y;
+      if (ann.type === "arrow") {
+        const head = Math.max(10, sw * 4.2);
+        const g = arrowGeometry(a.x, a.y, b.x, b.y, head);
+        x2 = g.bx;
+        y2 = g.by;
+        const poly = svgEl("polygon", {
+          points: g.x2 + "," + g.y2 + " " + g.p1x + "," + g.p1y + " " + g.p2x + "," + g.p2y,
+          fill: color,
+        });
+        poly.style.pointerEvents = "auto";
+        svg.appendChild(poly);
+      }
+      const hit = svgEl("line", {
+        x1: a.x, y1: a.y, x2: b.x, y2: b.y,
+        stroke: "transparent",
+        "stroke-width": Math.max(14, sw + 8),
+        "stroke-linecap": "round",
+      });
+      hit.style.pointerEvents = "stroke";
+      const vis = svgEl("line", {
+        x1, y1, x2, y2,
+        stroke: color,
+        "stroke-width": sw,
+        "stroke-linecap": "round",
+      });
+      vis.style.pointerEvents = "none";
+      svg.appendChild(hit);
+      svg.appendChild(vis);
+      el.appendChild(svg);
+      addMoveBar(el, ann);
+      addDelete(el, ann);
+      const h1 = document.createElement("div");
+      h1.className = "tb-handle free";
+      h1.dataset.handle = "p1";
+      h1.style.left = (a.x - 5) + "px";
+      h1.style.top = (a.y - 5) + "px";
+      const h2 = document.createElement("div");
+      h2.className = "tb-handle free";
+      h2.dataset.handle = "p2";
+      h2.style.left = (b.x - 5) + "px";
+      h2.style.top = (b.y - 5) + "px";
+      el.appendChild(h1);
+      el.appendChild(h2);
+      bindAnnPointer(el, ann);
+      return el;
     }
 
     function drawOverlays() {
       const vp = state.viewport;
       const overlay = els.overlay;
+      const prev = document.activeElement;
+      const editingHost = prev && prev.classList && prev.classList.contains("tb-edit") ? prev.closest("[data-id]") : null;
       overlay.innerHTML = "";
       if (!vp) return;
-      for (const box of boxesOnPage()) {
-        const rect = boxCssRect(box, vp);
-        const el = document.createElement("div");
-        el.className = "textbox" + (box.id === state.selectedId ? " selected" : "");
-        el.dataset.id = box.id;
-        el.style.left = rect.left + "px";
-        el.style.top = rect.top + "px";
-        el.style.width = Math.max(8, rect.width) + "px";
-        el.style.height = Math.max(8, rect.height) + "px";
-        el.style.color = box.color;
-        el.style.opacity = String(box.opacity);
-        el.style.fontSize = (box.fontSize * vp.scale) + "px";
-        el.style.fontWeight = box.bold ? "700" : "400";
-        el.style.fontStyle = box.italic ? "italic" : "normal";
-        el.style.fontFamily = FONT_FAMILY + ", sans-serif";
-
-        const move = document.createElement("div");
-        move.className = "tb-move";
-        move.title = "Drag to move";
-        el.appendChild(move);
-
-        const body = document.createElement("div");
-        body.className = "tb-body";
-        if (state.editingId === box.id) {
-          const ta = document.createElement("textarea");
-          ta.className = "tb-edit";
-          ta.value = box.text;
-          ta.placeholder = "Type here… 在此輸入";
-          ta.spellcheck = false;
-          ta.addEventListener("input", () => {
-            box.text = ta.value;
-            const next = boxCssRect(box, state.viewport);
-            el.style.height = Math.max(8, next.height) + "px";
-            maybeWarnGlyphs(box.text);
-          });
-          ta.addEventListener("mousedown", (e) => e.stopPropagation());
-          ta.addEventListener("keydown", (e) => {
-            if (e.key === "Escape") {
-              e.preventDefault();
-              state.editingId = null;
-              drawOverlays();
-            }
-            e.stopPropagation();
-          });
-          body.appendChild(ta);
-          requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); });
-        } else {
-          const { sy } = displayRatio(vp);
-          for (const line of rect.lines) {
-            const ln = document.createElement("div");
-            ln.className = "tb-line";
-            ln.textContent = line || " ";
-            ln.style.height = (box.fontSize * LINE * vp.scale * sy) + "px";
-            body.appendChild(ln);
-          }
-        }
-        el.appendChild(body);
-
-        const del = document.createElement("button");
-        del.type = "button";
-        del.className = "tb-del";
-        del.title = "Delete";
-        del.textContent = "×";
-        del.addEventListener("mousedown", (e) => e.stopPropagation());
-        del.addEventListener("click", (e) => {
-          e.stopPropagation();
-          deleteBox(box.id);
-        });
-        el.appendChild(del);
-
-        const handleE = document.createElement("div");
-        handleE.className = "tb-handle tb-e";
-        const handleSE = document.createElement("div");
-        handleSE.className = "tb-handle tb-se";
-        el.appendChild(handleE);
-        el.appendChild(handleSE);
-
-        el.addEventListener("mousedown", (e) => {
-          if (e.button !== 0) return;
-          if (e.target === handleE) { e.preventDefault(); e.stopPropagation(); startResize(box, "e", e); return; }
-          if (e.target === handleSE) { e.preventDefault(); e.stopPropagation(); startResize(box, "se", e); return; }
-          const inEdit = e.target.classList && e.target.classList.contains("tb-edit");
-          if (e.target === move || (!inEdit && state.editingId !== box.id)) {
-            if (e.target === move) e.preventDefault();
-            startDrag(box, e);
-          }
-        });
-        el.addEventListener("click", (e) => {
-          e.stopPropagation();
-          if (state.suppressClick) return;
-          if (state.selectedId !== box.id) setSelected(box.id, false);
-          else if (state.editingId !== box.id && e.target !== move && e.target !== handleE && e.target !== handleSE && e.target !== del) {
-            state.editingId = box.id;
-            drawOverlays();
-          }
-        });
-        el.addEventListener("dblclick", (e) => {
-          e.stopPropagation();
-          state.selectedId = box.id;
-          state.editingId = box.id;
-          syncProps();
-          drawOverlays();
-        });
-
-        overlay.appendChild(el);
+      for (const box of state.boxes) {
+        if (isText(box) && box.coverId) syncCover(box);
+      }
+      drawOriginalText();
+      for (const ann of boxesOnPage()) {
+        let el = null;
+        if (isText(ann)) el = drawTextAnn(ann, vp);
+        else if (ann.type === "image") el = drawImageAnn(ann);
+        else if (isLineLike(ann)) el = drawLineAnn(ann);
+        else if (ann.type === "rect" || ann.type === "ellipse") el = drawBoxAnn(ann);
+        if (el) overlay.appendChild(el);
+      }
+      if (editingHost && state.editingId && (!document.activeElement || document.activeElement === document.body)) {
+        const ta = overlay.querySelector('.ann[data-id="' + state.editingId + '"] textarea.tb-edit');
+        if (ta) ta.focus();
       }
     }
 
@@ -1096,82 +1853,282 @@
       toast("Some characters may not be in the embedded font and can appear as boxes: " + miss.slice(0, 8).join(" ") + (miss.length > 8 ? "…" : ""), "warn");
     }
 
-    function startDrag(box, e) {
-      const vp = state.viewport;
-      if (!vp) return;
-      setSelected(box.id, false);
-      state.editingId = null;
-      drawOverlays();
-      const start = eventToOverlay(e);
-      const [bx, by] = vp.convertToViewportPoint(box.x, box.y);
-      const ascent = box.fontSize * state.metrics.ascentRatio * vp.scale;
-      const dx = start.x - bx;
-      const dy = start.y - (by - ascent);
-      let moved = false;
-      state.interacting = true;
+    function snapshot(ann) {
+      if (isText(ann)) return { x: ann.x, y: ann.y, w: ann.width, fontSize: ann.fontSize };
+      if (isLineLike(ann)) return { x: ann.x, y: ann.y, x2: ann.x2, y2: ann.y2 };
+      return { x: ann.x, y: ann.y, w: ann.w, h: ann.h };
+    }
 
-      const onMove = (ev) => {
+    function nudgeTextFrom(box, pdfX, pdfY, dxPage, dyPage) {
+      const vp = state.viewport;
+      const [vx, vy] = vp.convertToViewportPoint(pdfX, pdfY);
+      const p = vp.convertToPdfPoint(vx + dxPage * vp.scale, vy + dyPage * vp.scale);
+      box.x = p[0];
+      box.y = p[1];
+    }
+
+    function applyMove(ann, snap, dx, dy) {
+      if (isText(ann)) {
+        nudgeTextFrom(ann, snap.x, snap.y, dx, dy);
+        return;
+      }
+      if (isLineLike(ann)) {
+        ann.x = snap.x + dx;
+        ann.y = snap.y + dy;
+        ann.x2 = snap.x2 + dx;
+        ann.y2 = snap.y2 + dy;
+        return;
+      }
+      ann.x = snap.x + dx;
+      ann.y = snap.y + dy;
+    }
+
+    function applyBoxResize(ann, handle, snap, dx, dy) {
+      let x = snap.x;
+      let y = snap.y;
+      let w = snap.w;
+      let h = snap.h;
+      if (handle.indexOf("e") >= 0) w = snap.w + dx;
+      if (handle.indexOf("s") >= 0) h = snap.h + dy;
+      if (handle.indexOf("w") >= 0) { w = snap.w - dx; x = snap.x + dx; }
+      if (handle.indexOf("n") >= 0) { h = snap.h - dy; y = snap.y + dy; }
+      const corner = handle.length === 2;
+      const lock = ann.type === "image" && ann.lockAspect !== false;
+      if (lock && corner && snap.w > 0 && snap.h > 0) {
+        const sx = w / snap.w;
+        const sy = h / snap.h;
+        let s = Math.abs(sx - 1) >= Math.abs(sy - 1) ? sx : sy;
+        if (!(s > 0.05)) s = 0.05;
+        w = snap.w * s;
+        h = snap.h * s;
+        x = handle.indexOf("w") >= 0 ? snap.x + snap.w - w : snap.x;
+        y = handle.indexOf("n") >= 0 ? snap.y + snap.h - h : snap.y;
+      } else {
+        if (w < 0) { x += w; w = -w; }
+        if (h < 0) { y += h; h = -h; }
+      }
+      const min = 8;
+      if (w < min) {
+        if (handle.indexOf("w") >= 0) x -= (min - w);
+        w = min;
+      }
+      if (h < min) {
+        if (handle.indexOf("n") >= 0) y -= (min - h);
+        h = min;
+      }
+      ann.x = x;
+      ann.y = y;
+      ann.w = w;
+      ann.h = h;
+    }
+
+    function trackPointer(opts) {
+      const start = eventToOverlay(opts.event);
+      const threshold = opts.threshold == null ? 4 : opts.threshold;
+      let moved = false;
+      let dead = false;
+      function onMove(ev) {
+        if (dead) return;
+        if (opts.prevent) ev.preventDefault();
         const p = eventToOverlay(ev);
-        const left = p.x - dx;
-        const top = p.y - dy;
-        const [x, y] = vp.convertToPdfPoint(left, top + ascent);
-        box.x = x;
-        box.y = y;
-        if (Math.hypot(p.x - start.x, p.y - start.y) > 3) moved = true;
-        drawOverlays();
-      };
-      const onUp = () => {
+        if (!moved) {
+          if (threshold > 0 && Math.hypot(p.x - start.x, p.y - start.y) < threshold) return;
+          moved = true;
+          state.interacting = true;
+          document.body.classList.add("interacting");
+          if (opts.onStart) opts.onStart();
+        }
+        if (opts.onMove) opts.onMove(p, start, ev);
+      }
+      function finish(ev) {
+        if (dead) return;
+        dead = true;
         window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
+        window.removeEventListener("mouseup", finish);
+        document.body.classList.remove("interacting");
         state.interacting = false;
-        if (moved) {
+        if (state.gesture && state.gesture.finish === finish) state.gesture = null;
+        if (moved || opts.alwaysSuppressClick) {
           state.suppressClick = true;
           setTimeout(() => { state.suppressClick = false; }, 0);
         }
+        if (opts.onEnd) opts.onEnd(moved, ev);
+      }
+      state.gesture = {
+        finish,
+        cancel() {
+          if (dead) return;
+          dead = true;
+          window.removeEventListener("mousemove", onMove);
+          window.removeEventListener("mouseup", finish);
+          document.body.classList.remove("interacting");
+          state.interacting = false;
+          state.gesture = null;
+          if (opts.onCancel) opts.onCancel();
+        },
       };
       window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
+      window.addEventListener("mouseup", finish);
     }
 
-    function startResize(box, mode, e) {
-      const vp = state.viewport;
-      if (!vp) return;
-      setSelected(box.id, false);
+    function armDrag(ann, e) {
+      const snap = snapshot(ann);
+      trackPointer({
+        event: e,
+        threshold: 4,
+        onStart() {
+          state.editingId = null;
+          state.selectedId = ann.id;
+          bringToFront(ann.id);
+        },
+        onMove(p, start) {
+          const dx = (p.x - start.x) / state.viewport.scale;
+          const dy = (p.y - start.y) / state.viewport.scale;
+          applyMove(ann, snap, dx, dy);
+          drawOverlays();
+        },
+        onEnd(moved) {
+          if (moved) syncProps();
+        },
+      });
+    }
+
+    function startResize(ann, handle, e) {
+      const snap = snapshot(ann);
+      state.selectedId = ann.id;
       state.editingId = null;
+      bringToFront(ann.id);
+      syncProps();
       drawOverlays();
-      const start = eventToOverlay(e);
-      const startW = box.width;
-      const startSize = box.fontSize;
-      state.interacting = true;
-      const onMove = (ev) => {
-        const p = eventToOverlay(ev);
-        const dCss = p.x - start.x;
-        const dPt = dCss / vp.scale;
-        if (mode === "e") {
-          box.width = Math.max(16, startW + dPt);
-        } else {
-          const factor = Math.max(0.25, (startW + dPt) / startW);
-          box.width = Math.max(16, startW * factor);
-          box.fontSize = Math.min(96, Math.max(8, startSize * factor));
+      trackPointer({
+        event: e,
+        threshold: 0,
+        prevent: true,
+        alwaysSuppressClick: true,
+        onMove(p, start) {
+          const dx = (p.x - start.x) / state.viewport.scale;
+          const dy = (p.y - start.y) / state.viewport.scale;
+          if (handle === "p1") {
+            ann.x = snap.x + dx;
+            ann.y = snap.y + dy;
+          } else if (handle === "p2") {
+            ann.x2 = snap.x2 + dx;
+            ann.y2 = snap.y2 + dy;
+          } else if (isText(ann)) {
+            if (handle === "e") ann.width = Math.max(16, snap.w + dx);
+            else {
+              const factor = Math.max(0.25, (snap.w + dx) / Math.max(1, snap.w));
+              ann.width = Math.max(16, snap.w * factor);
+              ann.fontSize = clamp(snap.fontSize * factor, 8, 96, snap.fontSize);
+            }
+            syncProps();
+          } else {
+            applyBoxResize(ann, handle, snap, dx, dy);
+          }
+          drawOverlays();
+        },
+        onEnd() { syncProps(); },
+      });
+    }
+
+    function startShapeDraw(e) {
+      const tool = state.tool;
+      const origin = viewportEventToPage(eventToOverlay(e));
+      const ann = {
+        id: uid(),
+        type: tool,
+        page: state.page,
+        color: state.shapeStyle.color,
+        fill: (tool === "line" || tool === "arrow" || !state.shapeStyle.fillEnabled) ? null : state.shapeStyle.fill,
+        strokeWidth: state.shapeStyle.strokeWidth,
+        opacity: state.shapeStyle.opacity,
+      };
+      if (tool === "line" || tool === "arrow") {
+        ann.x = origin.x;
+        ann.y = origin.y;
+        ann.x2 = origin.x;
+        ann.y2 = origin.y;
+      } else {
+        ann.x = origin.x;
+        ann.y = origin.y;
+        ann.w = 0;
+        ann.h = 0;
+      }
+      state.boxes.push(ann);
+      state.selectedId = ann.id;
+      state.editingId = null;
+      trackPointer({
+        event: e,
+        threshold: 0,
+        prevent: true,
+        alwaysSuppressClick: true,
+        onMove(p, start, ev) {
+          const q = viewportEventToPage(p);
+          if (tool === "line" || tool === "arrow") {
+            let x2 = q.x;
+            let y2 = q.y;
+            if (ev.shiftKey) {
+              const dx = q.x - origin.x;
+              const dy = q.y - origin.y;
+              const ang = Math.atan2(dy, dx);
+              const snapped = Math.round(ang / (Math.PI / 4)) * (Math.PI / 4);
+              const len = Math.hypot(dx, dy);
+              x2 = origin.x + Math.cos(snapped) * len;
+              y2 = origin.y + Math.sin(snapped) * len;
+            }
+            ann.x2 = x2;
+            ann.y2 = y2;
+          } else {
+            let x2 = q.x;
+            let y2 = q.y;
+            if (ev.shiftKey) {
+              const s = Math.max(Math.abs(q.x - origin.x), Math.abs(q.y - origin.y));
+              x2 = origin.x + Math.sign(q.x - origin.x || 1) * s;
+              y2 = origin.y + Math.sign(q.y - origin.y || 1) * s;
+            }
+            ann.x = Math.min(origin.x, x2);
+            ann.y = Math.min(origin.y, y2);
+            ann.w = Math.abs(x2 - origin.x);
+            ann.h = Math.abs(y2 - origin.y);
+          }
+          drawOverlays();
+        },
+        onEnd() {
+          if (!state.boxes.includes(ann)) return;
+          if (tool === "line" || tool === "arrow") {
+            if (Math.hypot(ann.x2 - ann.x, ann.y2 - ann.y) < 6) {
+              ann.x2 = ann.x + 140;
+              ann.y2 = ann.y;
+            }
+          } else if (ann.w < 6 && ann.h < 6) {
+            ann.w = tool === "ellipse" ? 96 : 140;
+            ann.h = tool === "ellipse" ? 96 : 84;
+          } else {
+            ann.w = Math.max(ann.w, 4);
+            ann.h = Math.max(ann.h, 4);
+          }
           syncProps();
-        }
-        drawOverlays();
-      };
-      const onUp = () => {
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-        state.interacting = false;
-        state.suppressClick = true;
-        setTimeout(() => { state.suppressClick = false; }, 0);
-      };
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
+          drawOverlays();
+        },
+        onCancel() {
+          state.boxes = state.boxes.filter((b) => b.id !== ann.id);
+          if (state.selectedId === ann.id) state.selectedId = null;
+          syncProps();
+          drawOverlays();
+        },
+      });
     }
 
     function deleteBox(id) {
-      state.boxes = state.boxes.filter((b) => b.id !== id);
-      if (state.selectedId === id) state.selectedId = null;
-      if (state.editingId === id) state.editingId = null;
+      const ann = state.boxes.find((b) => b.id === id);
+      if (!ann) return;
+      const drop = new Set([id]);
+      if (ann.coverId) drop.add(ann.coverId);
+      const removed = state.boxes.filter((b) => drop.has(b.id));
+      state.boxes = state.boxes.filter((b) => !drop.has(b.id));
+      revokeBoxUrls(removed.filter((b) => b.type === "image"));
+      if (drop.has(state.selectedId)) state.selectedId = null;
+      if (drop.has(state.editingId)) state.editingId = null;
       syncProps();
       drawOverlays();
     }
@@ -1179,7 +2136,7 @@
     function addBoxAt(vx, vy) {
       const vp = state.viewport;
       if (!vp) return;
-      const size = Number(els.size.value) || DEFAULT_SIZE;
+      const size = clamp(els.size.value, 8, 96, DEFAULT_SIZE);
       const color = normalizeHex(els.color.value) || DEFAULT_COLOR;
       const ascentCss = size * state.metrics.ascentRatio * vp.scale;
       const pageW = vp.width / vp.scale;
@@ -1189,6 +2146,7 @@
       const [x, y] = vp.convertToPdfPoint(vx, vy + ascentCss);
       const box = {
         id: uid(),
+        type: "text",
         page: state.page,
         x, y,
         width,
@@ -1203,11 +2161,222 @@
       setSelected(box.id, true);
     }
 
+    function editOriginalLine(line) {
+      const vp = state.viewport;
+      if (!vp) return;
+      const fontSize = clamp(Math.round(line.fontSize * 10) / 10, 8, 96, DEFAULT_SIZE);
+      const [pdfX, pdfY] = vp.convertToPdfPoint(line.x * vp.scale, line.baseline * vp.scale);
+      const measured = measureWidth(line.str, fontSize, false, false);
+      const text = {
+        id: uid(),
+        type: "text",
+        page: state.page,
+        x: pdfX,
+        y: pdfY,
+        width: Math.max(line.width, measured, 16) + 4,
+        fontSize,
+        text: line.str,
+        color: DEFAULT_COLOR,
+        bold: false,
+        italic: false,
+        opacity: 1,
+        originRel: {
+          dx: 0,
+          dy: -line.fontSize * line.ascent,
+          w: Math.max(line.width, 1),
+          h: Math.max(line.fontSize * (line.ascent - line.descent), 1),
+        },
+      };
+      const cover = makeCover(text);
+      state.boxes.push(cover, text);
+      syncCover(text);
+      beginEdit(text.id);
+      maybeWarnGlyphs(text.text);
+    }
+
+    function sniffImage(bytes, mime, name) {
+      if (bytes && bytes.length > 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return "image/png";
+      if (bytes && bytes.length > 3 && bytes[0] === 0xFF && bytes[1] === 0xD8) return "image/jpeg";
+      if (bytes && bytes.length > 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return "image/gif";
+      if (bytes && bytes.length > 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[8] === 0x57 && bytes[9] === 0x45) return "image/webp";
+      let head = "";
+      try { head = new TextDecoder().decode(bytes.slice(0, 240)).toLowerCase(); } catch (e) { head = ""; }
+      if (head.includes("<svg")) return "image/svg+xml";
+      const type = String(mime || "").toLowerCase();
+      if (type === "image/jpg" || type === "image/pjpeg") return "image/jpeg";
+      if (type.startsWith("image/")) return type;
+      const n = String(name || "").toLowerCase();
+      if (/\.png$/.test(n)) return "image/png";
+      if (/\.jpe?g$/.test(n)) return "image/jpeg";
+      if (/\.svg$/.test(n)) return "image/svg+xml";
+      if (/\.webp$/.test(n)) return "image/webp";
+      if (/\.gif$/.test(n)) return "image/gif";
+      if (/\.bmp$/.test(n)) return "image/bmp";
+      return "";
+    }
+
+    function svgViewBox(text) {
+      const m = String(text || "").match(/viewBox\s*=\s*["']([^"']+)["']/i);
+      if (m) {
+        const p = m[1].trim().split(/[\s,]+/).map(Number);
+        if (p.length === 4 && p[2] > 0 && p[3] > 0) return { w: p[2], h: p[3] };
+      }
+      const w = String(text || "").match(/\bwidth\s*=\s*["']([\d.]+)/i);
+      const h = String(text || "").match(/\bheight\s*=\s*["']([\d.]+)/i);
+      if (w && h && parseFloat(w[1]) > 0 && parseFloat(h[1]) > 0) return { w: parseFloat(w[1]), h: parseFloat(h[1]) };
+      return { w: 320, h: 240 };
+    }
+
+    function imageSize(url, svgText) {
+      if (svgText) return Promise.resolve(svgViewBox(svgText));
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ w: img.naturalWidth || 320, h: img.naturalHeight || 240 });
+        img.onerror = () => resolve({ w: 320, h: 240 });
+        img.src = url;
+      });
+    }
+
+    function placeImage(record, at) {
+      const vp = state.viewport;
+      if (!vp) return;
+      const pageW = vp.width / vp.scale;
+      const pageH = vp.height / vp.scale;
+      const natW = record.natW > 0 ? record.natW : 320;
+      const natH = record.natH > 0 ? record.natH : 240;
+      const aspect = natW / natH || 1;
+      let w = Math.min(pageW * 0.46, 340);
+      let h = w / aspect;
+      if (h > pageH * 0.7) {
+        h = pageH * 0.7;
+        w = h * aspect;
+      }
+      const center = at || pageCenter();
+      let x = center.x - w / 2;
+      let y = center.y - h / 2;
+      if (w < pageW) x = Math.min(Math.max(0, x), pageW - w);
+      if (h < pageH) y = Math.min(Math.max(0, y), pageH - h);
+      const ann = {
+        id: uid(),
+        type: "image",
+        page: state.page,
+        x, y, w, h,
+        opacity: 1,
+        bytes: record.bytes,
+        mime: record.mime,
+        svgText: record.svgText || null,
+        previewUrl: record.previewUrl,
+        natW, natH,
+        name: record.name || "diagram",
+        lockAspect: true,
+      };
+      state.boxes.push(ann);
+      setSelected(ann.id, false);
+      setTool("text");
+    }
+
+    async function readImageFile(file, at) {
+      if (!file) return;
+      if (!state.pdfjsDoc || !state.viewport) {
+        toast("Open a PDF first. 請先開啟 PDF。", "warn");
+        return;
+      }
+      let bytes;
+      try {
+        bytes = new Uint8Array(await file.arrayBuffer());
+      } catch (err) {
+        toast("Could not read that image. 無法讀取圖片。", "error");
+        return;
+      }
+      const mime = sniffImage(bytes, file.type, file.name);
+      if (!mime) {
+        toast("Use a PNG, JPEG, SVG, WebP, or GIF. 請使用 PNG、JPEG、SVG、WebP 或 GIF。", "error");
+        return;
+      }
+      let svgText = null;
+      if (mime === "image/svg+xml") {
+        try { svgText = new TextDecoder().decode(bytes); } catch (e) { svgText = ""; }
+        if (!/<svg[\s>]/i.test(svgText || "")) {
+          toast("That SVG could not be read. 無法讀取此 SVG。", "error");
+          return;
+        }
+      }
+      const previewUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
+      const dims = await imageSize(previewUrl, svgText);
+      placeImage({
+        bytes,
+        mime,
+        svgText,
+        previewUrl,
+        natW: dims.w,
+        natH: dims.h,
+        name: file.name || "diagram",
+      }, at);
+      toast("Diagram placed. Drag to move it, and use the handles to resize. 已放置圖片，可拖曳及調整大小。");
+    }
+
+    function isPdfFile(f) {
+      return !!(f && (f.type === "application/pdf" || /\.pdf$/i.test(f.name || "")));
+    }
+
+    function isImageFile(f) {
+      if (!f) return false;
+      if (String(f.type || "").startsWith("image/")) return true;
+      return /\.(png|jpe?g|svg|webp|gif|bmp)$/i.test(f.name || "");
+    }
+
+    els.overlay.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 || e.target !== els.overlay) return;
+      if (!state.viewport) return;
+      if (state.tool === "rect" || state.tool === "ellipse" || state.tool === "line" || state.tool === "arrow") {
+        e.preventDefault();
+        startShapeDraw(e);
+      }
+    });
+
     els.overlay.addEventListener("click", (e) => {
       if (e.target !== els.overlay) return;
       if (state.suppressClick || state.interacting) return;
+      if (state.tool !== "text") return;
       const p = eventToOverlay(e);
       addBoxAt(p.x, p.y);
+    });
+
+    els.tools.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-tool]");
+      if (!btn) return;
+      if (btn.dataset.tool === "image") {
+        if (!state.pdfjsDoc) {
+          toast("Open a PDF first. 請先開啟 PDF。", "warn");
+          return;
+        }
+        els.imageInput.click();
+        return;
+      }
+      setTool(btn.dataset.tool);
+    });
+
+    els.origToggle.addEventListener("click", async () => {
+      if (!state.pdfjsDoc) {
+        toast("Open a PDF first. 請先開啟 PDF。", "warn");
+        return;
+      }
+      state.showOriginal = !state.showOriginal;
+      els.origToggle.classList.toggle("on", state.showOriginal);
+      els.origToggle.setAttribute("aria-pressed", state.showOriginal ? "true" : "false");
+      if (state.showOriginal) {
+        try {
+          await ensurePageText();
+          if (!state.pageText.length) toast("No horizontal text was found on this page. 此頁沒有可選取的橫排文字。", "warn");
+        } catch (err) {
+          console.warn(err);
+          state.showOriginal = false;
+          els.origToggle.classList.remove("on");
+          toast("Could not read text from this page. 無法讀取此頁文字。", "warn");
+        }
+      }
+      updateHint();
+      drawOverlays();
     });
 
     els.btnOpen.addEventListener("click", () => els.fileInput.click());
@@ -1219,6 +2388,11 @@
       const f = els.fileInput.files && els.fileInput.files[0];
       els.fileInput.value = "";
       openPdfFile(f);
+    });
+    els.imageInput.addEventListener("change", () => {
+      const f = els.imageInput.files && els.imageInput.files[0];
+      els.imageInput.value = "";
+      readImageFile(f, null);
     });
 
     function isFileDrag(e) {
@@ -1241,15 +2415,33 @@
       document.body.classList.remove("dragging-file");
       els.dropzone.classList.remove("dragover");
       const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!f) return;
+      if (isImageFile(f) && !isPdfFile(f)) {
+        let at = null;
+        if (state.pdfjsDoc && state.viewport) {
+          const rect = els.overlay.getBoundingClientRect();
+          if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom && rect.width) {
+            at = viewportEventToPage(eventToOverlay(e));
+          }
+        }
+        readImageFile(f, at);
+        return;
+      }
       openPdfFile(f);
     });
 
-    els.prev.addEventListener("click", async () => {
-      if (state.page > 1) { state.page -= 1; state.selectedId = null; state.editingId = null; syncProps(); await renderPage(); }
-    });
-    els.next.addEventListener("click", async () => {
-      if (state.page < state.pageCount) { state.page += 1; state.selectedId = null; state.editingId = null; syncProps(); await renderPage(); }
-    });
+    async function changePage(next) {
+      if (next < 1 || next > state.pageCount || next === state.page) return;
+      state.page = next;
+      state.selectedId = null;
+      state.editingId = null;
+      state.textCacheKey = "";
+      syncProps();
+      await renderPage();
+    }
+
+    els.prev.addEventListener("click", () => changePage(state.page - 1));
+    els.next.addEventListener("click", () => changePage(state.page + 1));
     els.zoomIn.addEventListener("click", async () => {
       state.zoom = Math.min(4, Math.round((state.zoom + 0.1) * 10) / 10);
       await renderPage();
@@ -1272,10 +2464,19 @@
       renderPage();
     }, { passive: false });
 
+    els.editBtn.addEventListener("click", () => {
+      const ann = selected();
+      if (!ann || !isText(ann)) return;
+      if (state.editingId === ann.id) {
+        state.editingId = null;
+        syncProps();
+        drawOverlays();
+      } else beginEdit(ann.id);
+    });
     els.size.addEventListener("input", () => {
       const box = selected();
-      if (!box) return;
-      box.fontSize = Math.min(96, Math.max(8, Number(els.size.value) || DEFAULT_SIZE));
+      if (!box || !isText(box)) return;
+      box.fontSize = clamp(els.size.value, 8, 96, DEFAULT_SIZE);
       drawOverlays();
     });
     function applyColor(hex) {
@@ -1284,27 +2485,42 @@
       els.color.value = v;
       els.hex.value = v;
       const box = selected();
-      if (box) { box.color = v; drawOverlays(); }
+      if (box && isText(box)) { box.color = v; drawOverlays(); }
     }
     els.color.addEventListener("input", () => applyColor(els.color.value));
     els.hex.addEventListener("change", () => applyColor(els.hex.value));
     els.opacity.addEventListener("input", () => {
       const box = selected();
-      if (!box) return;
-      box.opacity = Math.min(1, Math.max(0.15, Number(els.opacity.value) || 1));
+      if (!box || !isText(box)) return;
+      box.opacity = clamp(els.opacity.value, 0.15, 1, 1);
       drawOverlays();
     });
     els.bold.addEventListener("click", () => {
       const box = selected();
-      if (!box) return;
+      if (!box || !isText(box)) return;
       box.bold = !box.bold;
       syncProps();
       drawOverlays();
     });
     els.italic.addEventListener("click", () => {
       const box = selected();
-      if (!box) return;
+      if (!box || !isText(box)) return;
       box.italic = !box.italic;
+      syncProps();
+      drawOverlays();
+    });
+    els.coverBtn.addEventListener("click", () => {
+      const ann = selected();
+      if (!ann || !isText(ann)) return;
+      if (ann.coverId) {
+        state.boxes = state.boxes.filter((b) => b.id !== ann.coverId);
+        ann.coverId = null;
+      } else {
+        const cover = makeCover(ann);
+        const i = state.boxes.findIndex((b) => b.id === ann.id);
+        state.boxes.splice(Math.max(0, i), 0, cover);
+        syncCover(ann);
+      }
       syncProps();
       drawOverlays();
     });
@@ -1312,40 +2528,274 @@
       if (state.selectedId) deleteBox(state.selectedId);
     });
 
+    function applyShapeColor(hex) {
+      const v = normalizeHex(hex);
+      if (!v) return;
+      els.shapeColor.value = v;
+      els.shapeHex.value = v;
+      state.shapeStyle.color = v;
+      const ann = selected();
+      if (ann && isShape(ann)) { ann.color = v; drawOverlays(); }
+    }
+    els.shapeColor.addEventListener("input", () => applyShapeColor(els.shapeColor.value));
+    els.shapeHex.addEventListener("change", () => applyShapeColor(els.shapeHex.value));
+    els.shapeStroke.addEventListener("input", () => {
+      const width = clamp(els.shapeStroke.value, 0, 40, state.shapeStyle.strokeWidth);
+      state.shapeStyle.strokeWidth = width;
+      const ann = selected();
+      if (ann && isShape(ann)) { ann.strokeWidth = width; drawOverlays(); }
+    });
+    els.shapeFillOn.addEventListener("click", () => {
+      const ann = selected();
+      const lineLike = ann && isLineLike(ann);
+      if (lineLike) return;
+      state.shapeStyle.fillEnabled = !state.shapeStyle.fillEnabled;
+      if (ann && isShape(ann)) {
+        ann.fill = state.shapeStyle.fillEnabled ? (normalizeHex(els.shapeFill.value) || "#ffffff") : null;
+      }
+      syncProps();
+      drawOverlays();
+    });
+    els.shapeFill.addEventListener("input", () => {
+      const v = normalizeHex(els.shapeFill.value) || "#ffffff";
+      state.shapeStyle.fill = v;
+      state.shapeStyle.fillEnabled = true;
+      const ann = selected();
+      if (ann && isShape(ann) && !isLineLike(ann)) { ann.fill = v; syncProps(); drawOverlays(); }
+    });
+    els.shapeOpacity.addEventListener("input", () => {
+      const opacity = clamp(els.shapeOpacity.value, 0.15, 1, 1);
+      state.shapeStyle.opacity = opacity;
+      const ann = selected();
+      if (ann && isShape(ann)) { ann.opacity = opacity; drawOverlays(); }
+    });
+    els.shapeDelete.addEventListener("click", () => {
+      if (state.selectedId) deleteBox(state.selectedId);
+    });
+    els.imageOpacity.addEventListener("input", () => {
+      const ann = selected();
+      if (!ann || ann.type !== "image") return;
+      ann.opacity = clamp(els.imageOpacity.value, 0.15, 1, 1);
+      drawOverlays();
+    });
+    els.imageLock.addEventListener("click", () => {
+      const ann = selected();
+      if (!ann || ann.type !== "image") return;
+      ann.lockAspect = ann.lockAspect === false;
+      syncProps();
+    });
+    els.imageDelete.addEventListener("click", () => {
+      if (state.selectedId) deleteBox(state.selectedId);
+    });
+
     window.addEventListener("keydown", (e) => {
       const tag = (document.activeElement && document.activeElement.tagName) || "";
       const typing = tag === "INPUT" || tag === "TEXTAREA" || (document.activeElement && document.activeElement.isContentEditable);
       if (e.key === "Escape") {
-        if (state.editingId) { state.editingId = null; drawOverlays(); }
-        else setSelected(null);
+        if (state.gesture) { state.gesture.cancel(); return; }
+        if (state.editingId) { state.editingId = null; syncProps(); drawOverlays(); return; }
+        setSelected(null);
         return;
       }
       if (typing) return;
+      if (e.key === "Enter" && state.selectedId && isText(selected()) && state.editingId !== state.selectedId) {
+        e.preventDefault();
+        beginEdit(state.selectedId);
+        return;
+      }
       if ((e.key === "Delete" || e.key === "Backspace") && state.selectedId) {
         e.preventDefault();
         deleteBox(state.selectedId);
         return;
       }
-      if (!state.selectedId || !state.viewport) return;
-      const box = selected();
-      if (!box) return;
-      const step = (e.shiftKey ? 8 : 1) * state.viewport.scale;
-      const [vx, vy] = state.viewport.convertToViewportPoint(box.x, box.y);
-      let nx = vx, ny = vy, used = false;
-      if (e.key === "ArrowLeft") { nx -= step; used = true; }
-      if (e.key === "ArrowRight") { nx += step; used = true; }
-      if (e.key === "ArrowUp") { ny -= step; used = true; }
-      if (e.key === "ArrowDown") { ny += step; used = true; }
-      if (!used) return;
+      const ann = selected();
+      if (!ann || !state.viewport) return;
+      if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey && isText(ann) && state.editingId !== ann.id) {
+        e.preventDefault();
+        ann.text = (ann.text || "") + e.key;
+        state.pendingCaret = ann.text.length;
+        beginEdit(ann.id);
+        return;
+      }
+      const step = e.shiftKey ? 8 : 1;
+      let dx = 0;
+      let dy = 0;
+      if (e.key === "ArrowLeft") dx = -step;
+      else if (e.key === "ArrowRight") dx = step;
+      else if (e.key === "ArrowUp") dy = -step;
+      else if (e.key === "ArrowDown") dy = step;
+      else return;
       e.preventDefault();
-      const p = state.viewport.convertToPdfPoint(nx, ny);
-      box.x = p[0]; box.y = p[1];
+      applyMove(ann, snapshot(ann), dx, dy);
       drawOverlays();
     });
 
+    function rasterSize(wPt, hPt, natW, natH) {
+      let w = Math.max(1, Math.round(Math.max(1, wPt) * 4));
+      let h = Math.max(1, Math.round(Math.max(1, hPt) * 4));
+      if (natW > 0 && natH > 0) {
+        const boost = Math.max(natW, natH) / Math.max(w, h);
+        if (boost > 1) {
+          w = Math.round(w * boost);
+          h = Math.round(h * boost);
+        }
+      }
+      const maxEdge = 4096;
+      const m = Math.max(w, h);
+      if (m > maxEdge) {
+        const s = maxEdge / m;
+        w = Math.max(1, Math.round(w * s));
+        h = Math.max(1, Math.round(h * s));
+      }
+      return { w, h };
+    }
+
+    function loadHtmlImage(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("Image failed to draw"));
+        img.src = url;
+      });
+    }
+
+    async function canvasToPng(draw) {
+      const blob = await new Promise((resolve) => draw.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("PNG encode failed");
+      return new Uint8Array(await blob.arrayBuffer());
+    }
+
+    async function urlToPngBytes(url, pxW, pxH) {
+      const img = await loadHtmlImage(url);
+      const canvas = document.createElement("canvas");
+      canvas.width = pxW;
+      canvas.height = pxH;
+      const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img, 0, 0, pxW, pxH);
+      return canvasToPng(canvas);
+    }
+
+    async function svgToPngBytes(svgText, pxW, pxH) {
+      let text = String(svgText || "");
+      if (!/\bwidth\s*=/.test(text)) text = text.replace(/<svg\b/i, '<svg width="' + pxW + '" height="' + pxH + '"');
+      const blob = new Blob([text], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      try {
+        return await urlToPngBytes(url, pxW, pxH);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    async function embedImage(pdfDoc, ann) {
+      if (ann.mime === "image/jpeg") {
+        try { return await pdfDoc.embedJpg(ann.bytes.slice()); } catch (err) { console.warn(err); }
+      } else if (ann.mime === "image/png") {
+        try { return await pdfDoc.embedPng(ann.bytes.slice()); } catch (err) { console.warn(err); }
+      }
+      const size = rasterSize(ann.w, ann.h, ann.natW, ann.natH);
+      const png = (ann.mime === "image/svg+xml" && ann.svgText)
+        ? await svgToPngBytes(ann.svgText, size.w, size.h)
+        : await urlToPngBytes(ann.previewUrl, size.w, size.h);
+      return pdfDoc.embedPng(png);
+    }
+
+    function visualToPdfPoint(vp, x, y) {
+      const p = vp.convertToPdfPoint(x, y);
+      return { x: p[0], y: p[1] };
+    }
+
+    function visualRectToPdf(vp, x, y, w, h) {
+      const bl = visualToPdfPoint(vp, x, y + h);
+      const br = visualToPdfPoint(vp, x + w, y + h);
+      const tl = visualToPdfPoint(vp, x, y);
+      const tr = visualToPdfPoint(vp, x + w, y);
+      return {
+        x: bl.x,
+        y: bl.y,
+        width: Math.hypot(br.x - bl.x, br.y - bl.y),
+        height: Math.hypot(tl.x - bl.x, tl.y - bl.y),
+        angle: Math.atan2(br.y - bl.y, br.x - bl.x),
+        cx: (bl.x + tr.x) / 2,
+        cy: (bl.y + tr.y) / 2,
+      };
+    }
+
+    function drawShapeOnPage(page, ann, vp1) {
+      const { rgb, radians } = PDFLib;
+      const stroke = hexToRgb(ann.color || DEFAULT_COLOR);
+      const opacity = ann.opacity == null ? 1 : ann.opacity;
+      const strokeColor = rgb(stroke.r, stroke.g, stroke.b);
+      if (isLineLike(ann)) {
+        const s = visualToPdfPoint(vp1, ann.x, ann.y);
+        const ept = visualToPdfPoint(vp1, ann.x2, ann.y2);
+        const thickness = ann.strokeWidth > 0 ? ann.strokeWidth : 1;
+        if (ann.type === "arrow") {
+          const len = Math.hypot(ept.x - s.x, ept.y - s.y);
+          if (len < 0.4) return;
+          const head = Math.max(8, thickness * 4.2);
+          const g = arrowGeometry(s.x, s.y, ept.x, ept.y, head);
+          page.drawLine({
+            start: { x: s.x, y: s.y },
+            end: { x: g.bx, y: g.by },
+            thickness,
+            color: strokeColor,
+            opacity,
+            lineCap: PDFLib.LineCapStyle.Round,
+          });
+          const path = "M 0 0 L " + (g.p1x - g.x2) + " " + (g.y2 - g.p1y) + " L " + (g.p2x - g.x2) + " " + (g.y2 - g.p2y) + " Z";
+          page.drawSvgPath(path, { x: g.x2, y: g.y2, color: strokeColor, opacity });
+          return;
+        }
+        page.drawLine({
+          start: { x: s.x, y: s.y },
+          end: { x: ept.x, y: ept.y },
+          thickness,
+          color: strokeColor,
+          opacity,
+          lineCap: PDFLib.LineCapStyle.Round,
+        });
+        return;
+      }
+      const g = visualRectToPdf(vp1, ann.x, ann.y, ann.w, ann.h);
+      if (!(g.width > 0.2) || !(g.height > 0.2)) return;
+      const opts = { opacity, borderOpacity: opacity, rotate: radians(g.angle) };
+      if (ann.fill) {
+        const f = hexToRgb(ann.fill);
+        opts.color = rgb(f.r, f.g, f.b);
+      }
+      if ((ann.strokeWidth || 0) > 0) {
+        opts.borderWidth = ann.strokeWidth;
+        opts.borderColor = strokeColor;
+      } else if (!ann.fill) {
+        opts.borderWidth = 1;
+        opts.borderColor = strokeColor;
+      }
+      if (ann.type === "ellipse") {
+        page.drawEllipse({
+          x: g.cx,
+          y: g.cy,
+          xScale: g.width / 2,
+          yScale: g.height / 2,
+          ...opts,
+        });
+      } else {
+        page.drawRectangle({
+          x: g.x,
+          y: g.y,
+          width: g.width,
+          height: g.height,
+          ...opts,
+        });
+      }
+    }
+
     async function savePdf() {
       if (!state.pdfBytes) return;
-      if (!state.fontReady && state.boxes.some((b) => b.text && missingNeedFont(b.text))) {
+      const texts = state.boxes.filter(isText);
+      if (!state.fontReady && texts.some((b) => b.text && missingNeedFont(b.text))) {
         toast("The CJK font is still loading. Wait a moment, then save again. 字型仍在載入，請稍後再下載。", "warn");
         return;
       }
@@ -1356,76 +2806,113 @@
         const { PDFDocument, rgb, degrees, StandardFonts } = PDFLib;
         const pdfDoc = await PDFDocument.load(state.pdfBytes);
         let font = null;
-        const usedText = state.boxes.map((b) => b.text || "").join("");
-        if (state.fontReady && state.fontBytes && window.fonteditorCore) {
-          pdfDoc.registerFontkit(window.fontkit);
-          try {
-            const subsetBytes = subsetEmbeddedFont(state.fontBytes, usedText);
-            font = await pdfDoc.embedFont(subsetBytes, { subset: false });
-          } catch (err) {
-            console.warn("subset failed, trying full embed", err);
+        const usedText = texts.map((b) => b.text || "").join("");
+        const needsEmbedded = texts.some((b) => b.text && String(b.text).trim());
+        if (needsEmbedded) {
+          if (state.fontReady && state.fontBytes && window.fonteditorCore) {
+            pdfDoc.registerFontkit(window.fontkit);
             try {
-              font = await pdfDoc.embedFont(state.fontBytes, { subset: false });
-            } catch (err2) {
-              console.warn(err2);
-              font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+              const subsetBytes = subsetEmbeddedFont(state.fontBytes, usedText);
+              font = await pdfDoc.embedFont(subsetBytes, { subset: false });
+            } catch (err) {
+              console.warn("subset failed, trying full embed", err);
+              try {
+                font = await pdfDoc.embedFont(state.fontBytes, { subset: false });
+              } catch (err2) {
+                console.warn(err2);
+                font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+              }
             }
+          } else if (state.fontReady && state.fontBytes) {
+            pdfDoc.registerFontkit(window.fontkit);
+            font = await pdfDoc.embedFont(state.fontBytes, { subset: false });
+          } else {
+            font = await pdfDoc.embedFont(StandardFonts.Helvetica);
           }
-        } else if (state.fontReady && state.fontBytes) {
-          pdfDoc.registerFontkit(window.fontkit);
-          font = await pdfDoc.embedFont(state.fontBytes, { subset: false });
-        } else {
-          font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        }
+        const vpCache = new Map();
+        async function vp1For(pageNum) {
+          if (!vpCache.has(pageNum)) {
+            const pdfjsPage = await state.pdfjsDoc.getPage(pageNum);
+            vpCache.set(pageNum, pdfjsPage.getViewport({ scale: 1 }));
+          }
+          return vpCache.get(pageNum);
         }
         const allMissing = [];
-        for (const box of state.boxes) {
-          if (!box.text || !String(box.text).replace(/\s+/g, "")) continue;
-          const page = pdfDoc.getPages()[box.page - 1];
+        let imageFailed = false;
+        const embedded = new Map();
+        for (const ann of state.boxes) {
+          const page = pdfDoc.getPages()[ann.page - 1];
           if (!page) continue;
-          const pdfjsPage = await state.pdfjsDoc.getPage(box.page);
-          const vp1 = pdfjsPage.getViewport({ scale: 1 });
-          const color = hexToRgb(box.color);
-          const lines = wrapText(box.text, box.fontSize, box.width, box.bold, box.italic);
-          const lineHeight = box.fontSize * LINE;
-          const [vx0, vy0] = vp1.convertToViewportPoint(box.x, box.y);
-          const miss = missingChars(box.text);
-          allMissing.push(...miss);
-          for (let i = 0; i < lines.length; i++) {
-            let line = lines[i];
-            if (!line) continue;
-            if (!state.fontReady) {
-              line = Array.from(line).map((ch) => (ch.charCodeAt(0) < 256 ? ch : "?")).join("");
-            }
-            const [x, y] = vp1.convertToPdfPoint(vx0, vy0 + i * lineHeight);
-            const b = vp1.convertToPdfPoint(vx0 + 10, vy0 + i * lineHeight);
-            const angle = Math.atan2(b[1] - y, b[0] - x);
-            const opts = {
-              x, y,
-              size: box.fontSize,
-              font,
-              color: rgb(color.r, color.g, color.b),
-              opacity: box.opacity,
-            };
-            if (Math.abs(angle) > 1e-6) opts.rotate = PDFLib.radians(angle);
-            if (box.italic) opts.xSkew = degrees(12);
-            try {
-              page.drawText(line, opts);
-              if (box.bold) {
-                const [x2, y2] = vp1.convertToPdfPoint(vx0 + 0.4, vy0 + i * lineHeight);
-                page.drawText(line, Object.assign({}, opts, { x: x2, y: y2 }));
+          const vp1 = await vp1For(ann.page);
+          if (isText(ann)) {
+            if (!ann.text || !String(ann.text).replace(/\s+/g, "")) continue;
+            const color = hexToRgb(ann.color);
+            const lines = wrapText(ann.text, ann.fontSize, ann.width, ann.bold, ann.italic);
+            const lineHeight = ann.fontSize * LINE;
+            const [vx0, vy0] = vp1.convertToViewportPoint(ann.x, ann.y);
+            allMissing.push(...missingChars(ann.text));
+            for (let i = 0; i < lines.length; i++) {
+              let line = lines[i];
+              if (!line) continue;
+              if (!state.fontReady) {
+                line = Array.from(line).map((ch) => (ch.charCodeAt(0) < 256 ? ch : "?")).join("");
               }
-            } catch (err) {
-              console.warn("drawText failed", err);
-              toast("Could not draw some text. 部分文字無法寫入 PDF。", "error");
+              const [x, y] = vp1.convertToPdfPoint(vx0, vy0 + i * lineHeight);
+              const right = vp1.convertToPdfPoint(vx0 + 10, vy0 + i * lineHeight);
+              const angle = Math.atan2(right[1] - y, right[0] - x);
+              const opts = {
+                x, y,
+                size: ann.fontSize,
+                font,
+                color: rgb(color.r, color.g, color.b),
+                opacity: ann.opacity,
+              };
+              if (Math.abs(angle) > 1e-6) opts.rotate = PDFLib.radians(angle);
+              if (ann.italic) opts.xSkew = degrees(12);
+              try {
+                page.drawText(line, opts);
+                if (ann.bold) {
+                  const [x2, y2] = vp1.convertToPdfPoint(vx0 + 0.4, vy0 + i * lineHeight);
+                  page.drawText(line, Object.assign({}, opts, { x: x2, y: y2 }));
+                }
+              } catch (err) {
+                console.warn("drawText failed", err);
+                toast("Could not draw some text. 部分文字無法寫入 PDF。", "error");
+              }
             }
+          } else if (ann.type === "image") {
+            try {
+              let img = embedded.get(ann.id);
+              if (!img) {
+                img = await embedImage(pdfDoc, ann);
+                embedded.set(ann.id, img);
+              }
+              const g = visualRectToPdf(vp1, ann.x, ann.y, ann.w, ann.h);
+              page.drawImage(img, {
+                x: g.x,
+                y: g.y,
+                width: g.width,
+                height: g.height,
+                rotate: PDFLib.radians(g.angle),
+                opacity: ann.opacity == null ? 1 : ann.opacity,
+              });
+            } catch (err) {
+              console.warn(err);
+              imageFailed = true;
+            }
+          } else if (ann.type === "rect" || ann.type === "ellipse" || isLineLike(ann)) {
+            try { drawShapeOnPage(page, ann, vp1); }
+            catch (err) { console.warn(err); toast("Could not draw a shape. 有圖形未能寫入 PDF。", "error"); }
           }
         }
+        if (imageFailed) toast("Some images could not be saved. 部分圖片未能寫入 PDF。", "error");
         const out = await pdfDoc.save();
         const base = state.filename.replace(/\.pdf$/i, "");
         const blob = new Blob([out], { type: "application/pdf" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = base + "-text.pdf";
+        a.download = base + "-edited.pdf";
         document.body.appendChild(a);
         a.click();
         setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
@@ -1450,7 +2937,7 @@
 
     let resizeTimer = null;
     const ro = new ResizeObserver(() => {
-      if (!state.pdfjsDoc) return;
+      if (!state.pdfjsDoc || state.interacting) return;
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => renderPage(), 80);
     });
@@ -1481,6 +2968,7 @@
     loadStdFonts().catch((err) => console.warn("Standard fonts failed", err));
     loadFont();
     updateChrome();
+    updateHint();
   })();
   </script>
 </body>
